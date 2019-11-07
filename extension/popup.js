@@ -70,6 +70,7 @@ function init() {
 					}
 				}
 				else {
+					notNullResponse();
 					elementId('searchbar').style.display = 'none';
 					tabLists[i].style.display = 'block';
 				}
@@ -123,14 +124,49 @@ function init() {
 	}
 
 
-	deleteBtn.addEventListener('click', function (event) {
-		bg.incRecent = [];
-		bg.incHist = [];
-		bg.tabs = {};
+	deleteBtn.addEventListener('click',() => {
+		const deleteRecord = () => {
+			var bg = chrome.extension.getBackgroundPage();
+			if (!bg) {
+				deleteRecord();
+				return;
+			}
 
-		recordList0.innerHTML = '';
-		recordList1.innerHTML = '';
-		nullResponse('All records were destroyed!');
+			var	searchOpt = getSearchOption(),
+				tabIndex = (parseInt(elementId('tab-bottom-slider').style.left) / 150) || 0;
+
+			recordList0.innerHTML = '';
+			recordList1.innerHTML = '';
+
+			if (tabIndex > 1 || searchOpt.keywords.length == 0) {
+				bg.incRecent = [];
+				bg.incHist = [];
+				bg.tabs = {};
+			}
+			else {
+				const matched = (record) => {
+					var found = true,
+						text = (searchOpt.searchTitle ? record.title : record.url).toLocaleLowerCase();
+					for (let i = searchOpt.keywords.length; found && --i >= 0; )
+						if (text.indexOf(searchOpt.keywords[i]) < 0)
+							found = false;
+					return found;
+				};
+
+				bg.incRecent = bg.incRecent.filter(r => !matched(r));
+				bg.incHist =  bg.incHist.filter(r => !matched(r));
+			}
+
+			if (tabIndex > 2 || (tabIndex ? bg.incHist : bg.incRecent).length > 0) {
+				notNullResponse();
+				showRecord(bg.incRecent, 0);
+				showRecord(bg.incHist, 1);
+				filterRecord();
+			}
+			else if (tabIndex < 2)
+				nullResponse('All records were destroyed!');
+		};
+		deleteRecord();
 	});
 
 	function nullResponse(message) {
