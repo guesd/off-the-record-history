@@ -60,13 +60,13 @@ function init() {
 
 				var currentTabList = tabLists[i];
 				if (i < 2) {
-					elementId('searchbar').style.display = 'table';
 					if (currentTabList.getElementsByTagName('li').length == 0)
 						nullResponse('No records found!');
 					else {
 						notNullResponse();
 						currentTabList.style.display = 'block';
 						currentTabList.scrollTop = 0;
+						filterRecord();
 					}
 				}
 				else {
@@ -138,8 +138,47 @@ function init() {
 
 }
 
-function filterRecord() {
+function getSearchOption() {
+	var splitted = [],
+		splitter = /[^\s"]+|"([^"]*)"/gi,
+		searchTitle = elementId('search-title').checked,
+		searchText = elementId('search-text').value.toLocaleLowerCase();
+
+	while (true) {
+		let match = splitter.exec(searchText);
+		if (match != null)
+			splitted.push(match[1] ? match[1] : match[0]);
+		else
+			break;
+	}
+
+	return { keywords: splitted, searchTitle: searchTitle };
 }
+
+function filterRecord() {
+	var tabIndex = (parseInt(elementId('tab-bottom-slider').style.left) / 150) || 0;
+	if (tabIndex < 0 || tabIndex > 1) return;
+
+	var list = elementId('record-list-' + tabIndex)
+				.getElementsByTagName('li');
+	if (list.length == 0) return;
+	elementId('searchbar').style.display = 'table';
+
+	var searchOpt = getSearchOption();
+	for (let item of list) {
+		let found = true,
+			rec = item.getElementsByTagName('a')[0],
+			text = (searchOpt.searchTitle ? rec.innerText : rec.href)
+					.toLocaleLowerCase();
+
+		for (let j = searchOpt.keywords.length; found && --j >= 0; )
+			if (text.indexOf(searchOpt.keywords[j]) < 0)
+				found = false;
+
+		item.style.display = found ? 'block' : 'none';
+	}
+}
+
 
 function showRecord(record, recType) {
 	var ul = elementId('record-list-' + recType),
