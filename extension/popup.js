@@ -1,106 +1,103 @@
-var _gaq = _gaq || [];
-_gaq.push(['_setAccount', 'UA-77917281-1']);
-_gaq.push(['_trackPageview']);
-
-(function () {
-	var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-	ga.src = 'https://ssl.google-analytics.com/ga.js';
-	var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-})();
-
-function trackButtonClick(e) {
-	_gaq.push(['_trackEvent', e.target.id, 'clicked']);
-}
-
-function trackLinkClick(e) {
-	_gaq.push(['_trackEvent', e.target.className, 'clicked']);
-}
-
 // pre-wake bg
 chrome.runtime.getBackgroundPage(function(){});
 
 document.addEventListener('DOMContentLoaded', init);
 
+function elementId(id) { return document.getElementById(id); }
+
+function invokeBg(fn, arg) {
+	var bg = chrome.extension.getBackgroundPage();
+	if (!bg)
+		invoke(fn, arg);
+	else
+		bg[fn](arg);
+}
+
 function init() {
-	var tabContent = document.getElementById('tabs-content'),
-		recordList0 = document.getElementById('record-list-0'),
-		recordList1 = document.getElementById('record-list-1'),
-		deleteBtn = document.getElementById('delete-btn'),
-		bg = chrome.extension.getBackgroundPage();
+	var bg = chrome.extension.getBackgroundPage();
 
 	// wake up bg page
-	if (!bg) {
+	if (!bg || !localStorage.initialized) {
 		chrome.runtime.getBackgroundPage(init);
 		return;
-		}
+	}
+
+	var tabContent = elementId('tabs-content'),
+		recordList0 = elementId('record-list-0'),
+		recordList1 = elementId('record-list-1'),
+		settingPage = elementId('setting-page'),
+		deleteBtn = elementId('delete-btn');
 
 	if (chrome.extension.inIncognitoContext) {
 		tabContent.style.display = 'block';
 		recordList0.style.display = 'block';
 		recordList1.style.display = 'none';
+		settingPage.style.display = 'none';
 		deleteBtn.style.display = 'block';
 
-		var recentlyClosed = bg.incRecent,
-			allHistory = bg.incHist;
+		let recentlyClosed = bg.incRecent,
+			settings = bg.incSettings;
 
 		if (recentlyClosed.length != 0)
 			notNullResponse();
 		else
 			nullResponse('No records found!')
 
-		showRecord(recentlyClosed, 'record-list-0');
-		showRecord(allHistory, 'record-list-1');
+		bg.trimRecords();
+		showRecord(recentlyClosed, 0);
+		showRecord(bg.incHist, 1);
 
-		var targetTabList = document.getElementById('tabs-content').getElementsByTagName('span');
+		let targetTabList = elementId('tabs-content').getElementsByTagName('span');
 
-		for (var i = 0; i < targetTabList.length; i++) {
+		for (let i = 0; i < targetTabList.length; i++) {
 			targetTabList[i].addEventListener('click', function (event) {
 
-				var tabIndex = this.getAttribute('data-tab-index');
-				document.getElementById('tab-bottom-slider').style.left = 225 * tabIndex + 'px';
+				elementId('tab-bottom-slider').style.left = 150 * i + 'px';
 
-				var tabsList = document.getElementsByClassName('tab-record-list'),
-					tabsListLength = tabsList.length - 1;
+				var tabLists = document.getElementsByClassName('tab-list');
+				for (let list of tabLists)
+					list.style.display = 'none';
 
-				for (var i = 0; i <= tabsListLength; i++) {
-					tabsList[i].style.display = 'none';
+				var currentTabList = tabLists[i];
+				if (i < 2) {
+					elementId('searchbar').style.display = 'table';
+					if (currentTabList.getElementsByTagName('li').length == 0)
+						nullResponse('No records found!');
+					else {
+						notNullResponse();
+						currentTabList.style.display = 'block';
+						currentTabList.scrollTop = 0;
+					}
 				}
-
-				var currentTabList = document.getElementById('record-list-' + tabIndex);
-				if (currentTabList.getElementsByTagName('li').length == 0)
-					nullResponse('No records found!');
-
 				else {
-					notNullResponse();
-					currentTabList.style.display = 'block';
-					currentTabList.scrollTop = 0;
+					elementId('searchbar').style.display = 'none';
+					tabLists[i].style.display = 'block';
 				}
-
-				trackButtonClick(event);
-
 			});
 		}
 
-		var recentLinkList = document.getElementsByClassName('recent-target-link');
+		let inputs = document.getElementsByTagName('input');
 
-		for (var i = 0; i < recentLinkList.length; i++) {
-			recentLinkList[i].addEventListener('click', function (event) {
-				chrome.tabs.create({
-					'url': this.getAttribute('href')
+		for (let input of inputs) {
+			if (settings && input.id in settings) {
+				if (input.type == 'checkbox')
+					input.checked = settings[input.id];
+				else
+					input.value = parseInt(settings[input.id]) || 0;
+			} else if (input.type == 'checkbox')
+				input.checked = input.id == "discard-leaving";
+			else if (input.type == 'number')
+				input.value = 0;
+			if (input.id == 'search-text')
+				input.addEventListener('input', filterRecord);
+			else if (input.type == 'checkbox')
+				input.addEventListener('change',
+					e => invokeBg('updateSetting', {name: e.target.id, value: e.target.checked}));
+			else
+				input.addEventListener('change', e => {
+					invokeBg('updateSetting', {name: e.target.id, value: e.target.value});
+					invokeBg('trimRecords');
 				});
-				trackLinkClick(event);
-			});
-		}
-
-		var historyLinkList = document.getElementsByClassName('history-target-link');
-
-		for (var i = 0; i < historyLinkList.length; i++) {
-			historyLinkList[i].addEventListener('click', function (event) {
-				chrome.tabs.create({
-					'url': this.getAttribute('href')
-				});
-				trackLinkClick(event);
-			});
 		}
 
 	} else {
@@ -118,7 +115,7 @@ function init() {
 	}
 
 
-	document.getElementById('delete-btn').addEventListener('click', function (event) {
+	deleteBtn.addEventListener('click', function (event) {
 		bg.incRecent = [];
 		bg.incHist = [];
 		bg.tabs = {};
@@ -126,60 +123,51 @@ function init() {
 		recordList0.innerHTML = '';
 		recordList1.innerHTML = '';
 		nullResponse('All records were destroyed!');
-
-		trackButtonClick(event);
-
 	});
 
 	function nullResponse(message) {
-		document.getElementById('tab-response-content').style.display = 'block';
-		document.getElementById('response-text').innerHTML = message;
+		elementId('searchbar').style.display = 'none';
+		elementId('tab-response-content').style.display = 'block';
+		elementId('response-text').innerHTML = message;
 	}
 
 	function notNullResponse() {
-		document.getElementById('tab-response-content').style.display = 'none';
-		document.getElementById('response-text').innerHTML = '';
+		elementId('tab-response-content').style.display = 'none';
+		elementId('response-text').innerHTML = '';
 	}
 
 }
 
-function showRecord(result, list) {
-	var i,
-		ul = document.getElementById(list),
-		record = result,
-		recordLength = record.length - 1,
-		ulType = parseInt(list.charAt(list.length - 1));
+function filterRecord() {
+}
 
-	for (i = recordLength; i >= 0; i--) {
-		var li = document.createElement('li');
-		var img = document.createElement('img');
-		var favIconUrl = record[i].favIcon;
-		if (favIconUrl != undefined)
-			img.setAttribute('src', favIconUrl);
-		else
-			img.setAttribute('src', 'default-favicon.ico');
+function showRecord(record, recType) {
+	var ul = elementId('record-list-' + recType),
+		recordLength = record.length - 1;
 
+	for (let i = recordLength; i >= 0; i--) {
+		let li = document.createElement('li'),
+			img = document.createElement('img');
+
+		img.setAttribute('src', record[i].favIcon || 'default-favicon.ico');
+		img.setAttribute('loading', 'lazy');
+		img.setAttribute('width', '16px');
+		img.setAttribute('height', '16px');
 		li.appendChild(img);
 
-		var a = document.createElement('a');
+		let a = document.createElement('a');
 		a.setAttribute('href', record[i].url);
-		if (ulType)
-			a.setAttribute('class', 'history-target-link');
-		else
-			a.setAttribute('class', 'recent-target-link');
-
+		a.setAttribute('title', record[i].url);
+		a.addEventListener('click', recType ?
+			() => chrome.tabs.create({url: record[i].url }) :
+			() => invokeBg('reopenTab', JSON.stringify(record[i])));
 		a.appendChild(document.createTextNode(record[i].title));
 		li.appendChild(a);
 
-		var span = document.createElement('span');
-		var time = new Date(record[i].timestamp);
-		var hour = time.getHours();
-		var minutes = time.getMinutes();
-		if (minutes > 9)
-			span.appendChild(document.createTextNode(hour + ":" + minutes));
-		else
-			span.appendChild(document.createTextNode(hour + ":0" + minutes));
-
+		let span = document.createElement('span');
+		let timestr = new Date(record[i].timestamp).toLocaleString(/*'default'*/'en-US',
+				{ hour12: false, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+		span.appendChild(document.createTextNode(timestr));
 		li.appendChild(span);
 		ul.appendChild(li);
 	}

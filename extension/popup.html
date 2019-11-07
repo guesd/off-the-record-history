@@ -9,20 +9,46 @@
 
 <div id="container">
 	<header>
-		<div>Off the record history <span id="delete-btn" title="Clear history"><img src="delete-icon.png" id="delete-btn-icon" /></span></div>
+		<div>Off the record history
+			<span id="delete-btn" title="Clear history">
+				<img src="delete-icon.png" id="delete-btn-icon" />
+			</span>
+		</div>
 	</header>
 
 	<div id="tabs-content">
-		<span id="recently-closed-tab" data-tab-index="0">Recently closed</span
-		><span id="full-history-tab" data-tab-index="1">Full history</span>
+		<span id="recently-closed-tab">Recently closed</span
+		><span id="full-history-tab">Full history</span
+		><span id="excluded-tab">Excluded URLs</span
+		><span id="setting-tab">Settings</span>
 		<div id="tab-bottom-slider"></div>
 	</div>
 	<div id="tab-response-content">
 		<img src="icon128.png" border="0" />
 		<div id="response-text"></div>
 	</div>
-	<ul id="record-list-0" class="tab-record-list"></ul>
-	<ul id="record-list-1" class="tab-record-list"></ul>
+	<div id="searchbar">
+		<label>Search history:</label>
+		<input id="search-title" name="search-type" type="radio" checked />
+		<label>title</label>
+		<input type="radio" name="search-type" />
+		<label>URL</label>
+		<input id="search-text" type="text" size="100" />
+	</div>
+	<ul id="record-list-0" class="tab-list"></ul>
+	<ul id="record-list-1" class="tab-list"></ul>
+	<ul id="exclude-list" class="tab-list"></ul>
+	<ul id="setting-page" class="tab-list">
+		<li><input id="permanent" type="checkbox" />
+			Preserve history across incognito sessions.<br />
+			&nbsp;&nbsp;&nbsp;&nbsp;<b>*History records are stored UNENCRYPTED.</b></li>
+		<li><p>Preserve records within 
+			<input id="maxDays" type="number" min="0" /> days only.</p></li>
+		<li><p>Preserve at most 
+			<input id="maxItems" type="number" min="0" /> record entries.</p></li>
+		<li><input id="pause" type="checkbox" />
+			Temporarily stops recording history.</li>
+	</ul>
 </div>
 
 </body>
