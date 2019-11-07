@@ -31,7 +31,7 @@ function updateSetting(obj) {
 	if (obj && obj.name && (!(name in incSettings) || incSettings[name] != obj.value)) {
 		incSettings[obj.name] = obj.value;
 		localStorage.incSettings = JSON.stringify(incSettings);
-		permanentStore({incSettings: incSettings});
+		permanentStore(obj.name == 'permanent' ? null : {incSettings: incSettings});
 	}
 }
 
