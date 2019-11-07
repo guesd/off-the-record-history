@@ -97,6 +97,14 @@ function init() {
 				input.addEventListener('change', e => {
 					invokeBg('updateSetting', {name: e.target.id, value: e.target.value});
 					invokeBg('trimRecords');
+					if (recordList0.getElementsByTagName('li').length > 0) {
+						recordList0.innerHTML = '';
+						showRecord(recentlyClosed, 0);
+					}
+					if (recordList1.getElementsByTagName('li').length > 0) {
+						recordList1.innerHTML = '';
+						showRecord(bg.incHist, 1);
+					}
 				});
 		}
 
