@@ -80,10 +80,23 @@ function trimRecords() {
 			incHist.splice(0, incHist.length - maxItems);
 	}
 
-	var sto = {incHist: incHist};
+	let sto = {incHist: incHist};
 	if (recLength != incRecent.length)
 		sto['incRecent'] = incRecent;
 	permanentStore(sto);
+}
+
+function setExcludeURL(obj) {
+	if (obj.index >= excludeURLs.length)
+		if (obj.url != '')
+			excludeURLs.push(obj.url);
+		else
+			return;
+	else if (obj.url != '')
+		excludeURLs[obj.index] = obj.url;
+	else
+		excludeURLs.splice(obj.index, 1);
+	permanentStore({excludeURLs: excludeURLs});
 }
 
 function bgIncognito() {
@@ -93,6 +106,7 @@ function bgIncognito() {
 		localStorage.setItem('incHist', JSON.stringify(incHist));
 		localStorage.setItem('incRecent', JSON.stringify(incRecent));
 		localStorage.setItem('incSettings', JSON.stringify(incSettings));
+		localStorage.setItem('excludeURLs', JSON.stringify(excludeURLs));
 	});
 
 	chrome.tabs.onUpdated.addListener((tabId, chg, tab) => {
@@ -180,6 +194,8 @@ if (chrome.extension.inIncognitoContext) {
 	else
 		bgIncognito();
 }
-else
+else {
 	chrome.commands.onCommand.addListener(() => chrome.sessions.restore());
+	setInterval(window.close, 5000);
+}
 

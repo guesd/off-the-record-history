@@ -35,7 +35,13 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none;	margin: 0; }
 p { padding-left: 16px; }
 
-#searchbar { display: table; padding: 8px 10px; }
+#searchbar { display: none; padding: 8px 10px; }
 #searchbar label { display: table-cell; white-space:nowrap; padding-right: 10px; }
 #searchbar input { display: table-cell; }
 #searchbar input[type="text"] { width: 100% }
+
+#setting-page { display: none; }
+
+#exclude-list { display: none; padding: 2px; }
+#exclude-list li { padding: 2px; }
+#exclude-list input { width: 100%; }

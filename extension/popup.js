@@ -25,6 +25,7 @@ function init() {
 	var tabContent = elementId('tabs-content'),
 		recordList0 = elementId('record-list-0'),
 		recordList1 = elementId('record-list-1'),
+		excludeList = elementId('exclude-list'),
 		settingPage = elementId('setting-page'),
 		deleteBtn = elementId('delete-btn');
 
@@ -33,6 +34,7 @@ function init() {
 		recordList0.style.display = 'block';
 		recordList1.style.display = 'none';
 		settingPage.style.display = 'none';
+		excludeList.style.display = 'none';
 		deleteBtn.style.display = 'block';
 
 		let recentlyClosed = bg.incRecent,
@@ -108,6 +110,41 @@ function init() {
 					}
 				});
 		}
+
+		function updateXURLItem(e) {
+			var et = e.target;
+				li = et.parentElement,
+				ul = li.parentElement,
+				list = ul.children;
+
+			for (var i = 0; /*i < list.length &&*/ li != list[i] ; i++);
+
+			if (i == list.length - 1) {
+				if (et.value == '')
+					return;
+				ul.appendChild(createXURLItem(i + 1, ''));
+			}
+			else if (et.value == '')
+				et.remove();
+
+			invokeBg('setExcludeURL', { index: i, url: et.value });
+		}
+
+		function createXURLItem(i, u) {
+			let li = document.createElement('li'),
+				input = document.createElement('input');
+
+			input.setAttribute('type', 'text');
+			input.setAttribute('value', u);
+			input.addEventListener('keyup', e => { if (e.keyCode == 13) e.target.blur(); });
+			input.addEventListener('blur', updateXURLItem);
+
+			li.appendChild(input);
+			return li;
+		}
+
+		bg.excludeURLs.forEach((u, i) => excludeList.appendChild(createXURLItem(i, u)));
+		excludeList.appendChild(createXURLItem(bg.excludeURLs.length, ''));
 
 	} else {
 		tabContent.style.display = 'none';
@@ -201,20 +238,20 @@ function getSearchOption() {
 }
 
 function filterRecord() {
-	var tabIndex = (parseInt(elementId('tab-bottom-slider').style.left) / 150) || 0;
+	var list, searchOpt,
+		tabIndex = (parseInt(elementId('tab-bottom-slider').style.left) / 150) || 0;
 	if (tabIndex < 0 || tabIndex > 1) return;
 
-	var list = elementId('record-list-' + tabIndex)
-				.getElementsByTagName('li');
-	if (list.length == 0) return;
+	list = elementId('record-list-' + tabIndex).getElementsByTagName('li');
+	if (list.length == 0)
+		return;
 	elementId('searchbar').style.display = 'table';
 
-	var searchOpt = getSearchOption();
+	searchOpt = getSearchOption();
 	for (let item of list) {
 		let found = true,
 			rec = item.getElementsByTagName('a')[0],
-			text = (searchOpt.searchTitle ? rec.innerText : rec.href)
-					.toLocaleLowerCase();
+			text = (searchOpt.searchTitle ? rec.innerText : rec.href).toLocaleLowerCase();
 
 		for (let j = searchOpt.keywords.length; found && --j >= 0; )
 			if (text.indexOf(searchOpt.keywords[j]) < 0)
@@ -228,6 +265,7 @@ function filterRecord() {
 function showRecord(record, recType) {
 	var ul = elementId('record-list-' + recType),
 		recordLength = record.length - 1;
+	elementId('searchbar').style.display = 'table';
 
 	for (let i = recordLength; i >= 0; i--) {
 		let li = document.createElement('li'),
