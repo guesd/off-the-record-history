@@ -6,11 +6,25 @@ var tabs = JSON.parse(localStorage.tabs || '{}'),
 
 function permanentStore(obj) {
 	if (!incSettings.permanent) {
-		chrome.storage.local.getBytesInUse(null,
-			b => { if (b > 0) chrome.storage.local.clear(); });
-		return;
+		if ('incSettings' in obj) {
+			chrome.storage.local.get([incHist, incRecent], s => {
+				if (s.incHist && s.incHist.length > 0)
+					s.incHist = [];
+				if (s.incRecent && s.incRecent.length > 0)
+					s.incRecent = [];
+				chrome.store.local.set(s);
+			});
+		}
+		else if ('incHist' in obj || 'incRecent' in obj)
+			return;
 	}
-	chrome.storage.local.set(obj || { tabs: tabs, incHist: incHist, incRecent: incRecent, incSettings: incSettings, excludeURLs: excludeURLs });
+
+	chrome.storage.local.set(obj || {
+		incHist: incHist,
+		incRecent: incSettings.permanent ? incRecent : [],
+		incSettings: incSettings.permanent ? incSettings : [],
+		excludeURLs: excludeURLs
+	});
 }
 
 function reopenTab(tab) {
@@ -36,6 +50,10 @@ function updateSetting(obj) {
 }
 
 function trimRecords() {
+
+	if (incSettings.pause)
+		return;
+
 	var recLength = incRecent.length,
 		maxItems = incSettings.maxItems || 0;
 		maxDays = incSettings.maxDays || 0;
@@ -62,10 +80,10 @@ function trimRecords() {
 			incHist.splice(0, incHist.length - maxItems);
 	}
 
-	permanentStore({incHist: incHist});
-
+	var sto = {incHist: incHist};
 	if (recLength != incRecent.length)
-		permanentStore({incRecent: incRecent});
+		sto['incRecent'] = incRecent;
+	permanentStore(sto);
 }
 
 function bgIncognito() {
@@ -78,10 +96,9 @@ function bgIncognito() {
 	});
 
 	chrome.tabs.onUpdated.addListener((tabId, chg, tab) => {
-		if (['chrome://newtab/', 'about:blank'].includes(tab.url))
-			return;
-
-		if (excludeURLs.some(x => new RegExp(x).test(tab.url)))
+		if (incSettings.pause ||
+				['chrome://newtab/', 'about:blank'].includes(tab.url) ||
+				excludeURLs.some(x => new RegExp(x).test(tab.url)))
 			return;
 
 		var t = tabs[tabId];
@@ -93,7 +110,7 @@ function bgIncognito() {
 				favIcon: tab.favIconUrl,
 				timestamp: Date()
 			});
-		else if (chg.status=='loading') {
+		else if (chg.status == 'loading') {
 			let nt = {
 				id: tabId,
 				url: tab.url,
@@ -116,47 +133,43 @@ function bgIncognito() {
 			if (tab.favIconUrl)
 				t.favIcon = tab.favIconUrl;
 		}
+		else
+			return;
 
-		permanentStore({tabs: tabs});
 		permanentStore({incHist: incHist});
 	});
 
 	chrome.tabs.onReplaced.addListener((newId, oldId) => {
-		if (tabs[oldId]) {
+		if (!incSettings.pause && tabs[oldId]) {
 			tabs[newId] = tabs[oldId];
 			tabs[newId].id = newId;
-			permanentStore({tabs: tabs});
 		}
 	});
 
 	chrome.tabs.onRemoved.addListener(tab => {
-		if (tabs[tab]) {
+		if (!incSettings.pause && tabs[tab]) {
 			incRecent.push(tabs[tab]);
 			permanentStore({incRecent: incRecent});
 		}
+		if (tabs[tab])
+			delete tabs[tab];
 	});
 
 	chrome.commands.onCommand.addListener(reopenTab);
 
-	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-
-		if (request.updateSettings) {
-			updateLocalStorage();
-			return;
-		}
-
-		if (request.reopenRecord) {
-			return;
-		}
-
+	chrome.tabs.query({}, allTabs => {
+		var newTabs = {};
+		allTabs.forEach((t) => {
+			if (t.id in tabs)
+				newTabs[t.id] = tabs[t.id];
+		});
+		tabs = newTabs;
 	});
-
 }
 
 if (chrome.extension.inIncognitoContext) {
 	if (!localStorage.initialized)
 		chrome.storage.local.get(null, c => {
-			tabs = c.tabs || {};
 			incHist = c.incHist || [];
 			incRecent = c.incRecent || [];
 			incSettings = c.incSettings || {};

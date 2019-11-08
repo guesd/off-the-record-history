@@ -156,6 +156,7 @@ function init() {
 				bg.incRecent = bg.incRecent.filter(r => !matched(r));
 				bg.incHist =  bg.incHist.filter(r => !matched(r));
 			}
+			bg.permanentStore({incRecent: bg.incRecent, incHist: bg.incHist});
 
 			if (tabIndex > 2 || (tabIndex ? bg.incHist : bg.incRecent).length > 0) {
 				notNullResponse();
@@ -232,7 +233,7 @@ function showRecord(record, recType) {
 		let li = document.createElement('li'),
 			img = document.createElement('img');
 
-		img.setAttribute('src', record[i].favIcon || 'default-favicon.ico');
+		img.setAttribute('src', record[i].favIcon && !record[i].favIcon.startsWith('chrome://') ? record[i].favIcon : 'default-favicon.ico');
 		img.setAttribute('loading', 'lazy');
 		img.setAttribute('width', '16px');
 		img.setAttribute('height', '16px');
