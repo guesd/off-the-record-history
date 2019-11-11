@@ -7,13 +7,8 @@ var tabs = JSON.parse(localStorage.tabs || '{}'),
 function permanentStore(obj) {
 	if (!incSettings.permanent) {
 		if ('incSettings' in obj) {
-			chrome.storage.local.get([incHist, incRecent], s => {
-				if (s.incHist && s.incHist.length > 0)
-					s.incHist = [];
-				if (s.incRecent && s.incRecent.length > 0)
-					s.incRecent = [];
-				chrome.store.local.set(s);
-			});
+			obj['incHist'] = [];
+			obj['incRecent'] = [];
 		}
 		else if ('incHist' in obj || 'incRecent' in obj)
 			return;
@@ -101,13 +96,9 @@ function setExcludeURL(obj) {
 
 function bgIncognito() {
 
-	chrome.runtime.onSuspend.addListener(() => {
-		localStorage.setItem('tabs', JSON.stringify(tabs));
-		localStorage.setItem('incHist', JSON.stringify(incHist));
-		localStorage.setItem('incRecent', JSON.stringify(incRecent));
-		localStorage.setItem('incSettings', JSON.stringify(incSettings));
-		localStorage.setItem('excludeURLs', JSON.stringify(excludeURLs));
-	});
+	chrome.runtime.onSuspend.addListener(() =>
+		['tabs', 'incHist', 'incRecent', 'incSettings', 'excludeURLs'].forEach(n =>
+			localStorage.setItem(n, JSON.stringify(window[n]))));
 
 	chrome.tabs.onUpdated.addListener((tabId, chg, tab) => {
 		if (incSettings.pause ||
@@ -115,23 +106,21 @@ function bgIncognito() {
 				excludeURLs.some(x => new RegExp(x).test(tab.url)))
 			return;
 
-		var t = tabs[tabId];
-		if (!t)
-			incHist.push(tabs[tabId] = {
-				id: tabId,
-				url: tab.url,
-				title: tab.title,
-				favIcon: tab.favIconUrl,
-				timestamp: Date()
-			});
-		else if (chg.status == 'loading') {
-			let nt = {
+		function newTab() {
+			return {
 				id: tabId,
 				url: tab.url,
 				title: tab.title,
 				favIcon: tab.favIconUrl,
 				timestamp: Date()
 			};
+		}
+
+		var t = tabs[tabId];
+		if (!t)
+			incHist.push(tabs[tabId] = newTab());
+		else if (chg.status == 'loading') {
+			let nt = newTab();
 			if (t.url != nt.url) {
 				tabs[tabId] = nt;
 				incHist.push(nt);
@@ -157,23 +146,25 @@ function bgIncognito() {
 		if (!incSettings.pause && tabs[oldId]) {
 			tabs[newId] = tabs[oldId];
 			tabs[newId].id = newId;
+			delete tabs[oldId];
 		}
 	});
 
 	chrome.tabs.onRemoved.addListener(tab => {
-		if (!incSettings.pause && tabs[tab]) {
-			incRecent.push(tabs[tab]);
-			permanentStore({incRecent: incRecent});
-		}
-		if (tabs[tab])
+		if (tabs[tab]) {
+			if (!incSettings.pause) {
+				incRecent.push(tabs[tab]);
+				permanentStore({incRecent: incRecent});
+			}
 			delete tabs[tab];
+		}
 	});
 
 	chrome.commands.onCommand.addListener(reopenTab);
 
 	chrome.tabs.query({}, allTabs => {
 		var newTabs = {};
-		allTabs.forEach((t) => {
+		allTabs.forEach(t => {
 			if (t.id in tabs)
 				newTabs[t.id] = tabs[t.id];
 		});

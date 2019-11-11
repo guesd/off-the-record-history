@@ -91,7 +91,7 @@ function init() {
 				input.checked = input.id == "discard-leaving";
 			else if (input.type == 'number')
 				input.value = 0;
-			if (input.id == 'search-text')
+			if (input.id == 'search-text' || input.type == 'radio')
 				input.addEventListener('input', filterRecord);
 			else if (input.type == 'checkbox')
 				input.addEventListener('change',
@@ -271,7 +271,7 @@ function showRecord(record, recType) {
 		let li = document.createElement('li'),
 			img = document.createElement('img');
 
-		img.setAttribute('src', record[i].favIcon && !record[i].favIcon.startsWith('chrome://') ? record[i].favIcon : 'default-favicon.ico');
+		img.setAttribute('src', record[i].favIcon && !record[i].favIcon.startsWith('chrome-extension://') ? record[i].favIcon : 'default-favicon.ico');
 		img.setAttribute('loading', 'lazy');
 		img.setAttribute('width', '16px');
 		img.setAttribute('height', '16px');
