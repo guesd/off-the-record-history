@@ -162,14 +162,14 @@ function bgIncognito() {
 
 	chrome.commands.onCommand.addListener(reopenTab);
 
-	chrome.tabs.query({}, allTabs => {
+	setTimeout(() => chrome.tabs.query({}, allTabs => {
 		var newTabs = {};
 		allTabs.forEach(t => {
 			if (t.id in tabs)
 				newTabs[t.id] = tabs[t.id];
 		});
 		tabs = newTabs;
-	});
+	}), 1000);
 }
 
 if (chrome.extension.inIncognitoContext) {
@@ -187,6 +187,6 @@ if (chrome.extension.inIncognitoContext) {
 }
 else {
 	chrome.commands.onCommand.addListener(() => chrome.sessions.restore());
-	setInterval(window.close, 5000);
+	setTimeout(window.close, 5000);
 }
 

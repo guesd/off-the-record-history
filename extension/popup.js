@@ -280,9 +280,18 @@ function showRecord(record, recType) {
 		let a = document.createElement('a');
 		a.setAttribute('href', record[i].url);
 		a.setAttribute('title', record[i].url);
-		a.addEventListener('click', recType ?
-			() => chrome.tabs.create({url: record[i].url }) :
-			() => invokeBg('reopenTab', JSON.stringify(record[i])));
+		a.addEventListener('mousedown', recType ?
+			e => {
+				if (e.button != 2)
+					chrome.tabs.create({url: record[i].url });
+			} :
+			e => {
+				if (e.button != 2) {
+					if (e.button == 1 || e.ctrlKey)
+						e.preventDefault();
+					invokeBg('reopenTab', JSON.stringify(record[i]));
+				}
+			});
 		a.appendChild(document.createTextNode(record[i].title));
 		li.appendChild(a);
 
