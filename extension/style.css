@@ -38,7 +38,7 @@ p { padding-left: 16px; }
 #searchbar { display: none; padding: 8px 10px; }
 #searchbar label { display: table-cell; white-space:nowrap; padding-right: 10px; }
 #searchbar input { display: table-cell; }
-#searchbar input[type="text"] { width: 100% }
+#searchbar input[type="search"] { width: 100% }
 
 #setting-page { display: none; }
 

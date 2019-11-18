@@ -13,6 +13,8 @@ function invokeBg(fn, arg) {
 		bg[fn](arg);
 }
 
+var searchbar;
+
 function init() {
 	var bg = chrome.extension.getBackgroundPage();
 
@@ -28,6 +30,8 @@ function init() {
 		excludeList = elementId('exclude-list'),
 		settingPage = elementId('setting-page'),
 		deleteBtn = elementId('delete-btn');
+		searchText = elementId('search-text');
+	searchbar = elementId('searchbar');
 
 	if (chrome.extension.inIncognitoContext) {
 		tabContent.style.display = 'block';
@@ -40,19 +44,20 @@ function init() {
 		let recentlyClosed = bg.incRecent,
 			settings = bg.incSettings;
 
-		if (recentlyClosed.length != 0)
-			notNullResponse();
-		else
-			nullResponse('No records found!')
-
 		bg.trimRecords();
-		showRecord(recentlyClosed, 0);
 		showRecord(bg.incHist, 1);
+
+		if (recentlyClosed.length != 0) {
+			notNullResponse();
+			showRecord(recentlyClosed, 0);
+			searchText.focus();
+		} else
+			nullResponse('No records found!')
 
 		let targetTabList = elementId('tabs-content').getElementsByTagName('span');
 
 		for (let i = 0; i < targetTabList.length; i++) {
-			targetTabList[i].addEventListener('click', function (event) {
+			targetTabList[i].addEventListener('click', function (e) {
 
 				elementId('tab-bottom-slider').style.left = 150 * i + 'px';
 
@@ -61,20 +66,25 @@ function init() {
 					list.style.display = 'none';
 
 				var currentTabList = tabLists[i];
+				e.target.focus();
 				if (i < 2) {
-					if (currentTabList.getElementsByTagName('li').length == 0)
+					if (currentTabList.getElementsByTagName('li').length == 0) {
 						nullResponse('No records found!');
-					else {
+						
+					} else {
 						notNullResponse();
 						currentTabList.style.display = 'block';
 						currentTabList.scrollTop = 0;
 						filterRecord();
+						searchText.focus();
 					}
 				}
 				else {
 					notNullResponse();
-					elementId('searchbar').style.display = 'none';
+					searchbar.style.display = 'none';
 					tabLists[i].style.display = 'block';
+					if (i == 2)
+						(l => l[l.length - 1])(excludeList.getElementsByTagName('input')).focus();
 				}
 			});
 		}
@@ -160,7 +170,6 @@ function init() {
 		});
 	}
 
-
 	deleteBtn.addEventListener('click',() => {
 		const deleteRecord = () => {
 			var bg = chrome.extension.getBackgroundPage();
@@ -196,7 +205,7 @@ function init() {
 			bg.permanentStore({incRecent: bg.incRecent, incHist: bg.incHist});
 
 			if (tabIndex > 2 || (tabIndex ? bg.incHist : bg.incRecent).length > 0) {
-				notNullResponse();
+				notNullResponse(tabIndex == 2);
 				showRecord(bg.incRecent, 0);
 				showRecord(bg.incHist, 1);
 				filterRecord();
@@ -208,12 +217,12 @@ function init() {
 	});
 
 	function nullResponse(message) {
-		elementId('searchbar').style.display = 'none';
+		searchbar.style.display = 'none';
 		elementId('tab-response-content').style.display = 'block';
 		elementId('response-text').innerHTML = message;
 	}
 
-	function notNullResponse() {
+	function notNullResponse(x = false) {
 		elementId('tab-response-content').style.display = 'none';
 		elementId('response-text').innerHTML = '';
 	}
@@ -245,7 +254,7 @@ function filterRecord() {
 	list = elementId('record-list-' + tabIndex).getElementsByTagName('li');
 	if (list.length == 0)
 		return;
-	elementId('searchbar').style.display = 'table';
+	searchbar.style.display = 'table';
 
 	searchOpt = getSearchOption();
 	for (let item of list) {
@@ -261,11 +270,10 @@ function filterRecord() {
 	}
 }
 
-
 function showRecord(record, recType) {
 	var ul = elementId('record-list-' + recType),
 		recordLength = record.length - 1;
-	elementId('searchbar').style.display = 'table';
+	searchbar.style.display = 'table';
 
 	for (let i = recordLength; i >= 0; i--) {
 		let li = document.createElement('li'),
